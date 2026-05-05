@@ -1,0 +1,91 @@
+import numpy as np
+import skfuzzy as fuzz
+from skfuzzy import control as ctrl
+# Tên file: bai_2_11_shopee.py
+
+#Biến đầu vào - (Số liệu trang 86)
+khoang_cach = ctrl.Antecedent(np.arange(0, 51, 1), 'khoang_cach')
+luu_luong = ctrl.Antecedent(np.arange(0, 101, 1), 'luu_luong')
+nhu_cau = ctrl.Antecedent(np.arange(0, 101, 1), 'nhu_cau')
+thoi_tiet = ctrl.Antecedent(np.arange(0, 11, 1), 'thoi_tiet') # 0(Tốt) -> 10(Xấu)
+danh_gia = ctrl.Antecedent(np.arange(1.0, 5.1, 0.1), 'danh_gia') # 1.0 đến 5.0 sao
+dung_gio = ctrl.Antecedent(np.arange(0, 101, 1), 'dung_gio') # 0 đến 100%
+
+#Biến đầu ra
+gia_xe = ctrl.Consequent(np.arange(1.0, 4.1, 0.1), 'gia_xe')
+diem_thuong = ctrl.Consequent(np.arange(0, 101, 1), 'diem_thuong') # 0-100 điểm
+
+# Khoảng cách: Ngắn (0-3km), Trung bình (2-8km), Dài (6-20km), Rất xa (15-50km)
+khoang_cach['ngan'] = fuzz.trimf(khoang_cach.universe, [0, 0, 3])
+khoang_cach['trung_binh'] = fuzz.trimf(khoang_cach.universe, [2, 5, 8])
+khoang_cach['dai'] = fuzz.trimf(khoang_cach.universe, [6, 13, 20])
+khoang_cach['rat_xa'] = fuzz.trimf(khoang_cach.universe, [15, 50, 50])
+
+# Lưu lượng giao thông: Thấp (0-30%), Trung bình (20-70%), Cao (60-100%)
+luu_luong['thap'] = fuzz.trimf(luu_luong.universe, [0, 0, 30])
+luu_luong['trung_binh'] = fuzz.trimf(luu_luong.universe, [20, 45, 70])
+luu_luong['cao'] = fuzz.trimf(luu_luong.universe, [60, 100, 100])
+
+# Nhu cầu: Thấp (0-30%), Trung bình (20-70%), Cao (60-100%)
+nhu_cau['thap'] = fuzz.trimf(nhu_cau.universe, [0, 0, 30])
+nhu_cau['trung_binh'] = fuzz.trimf(nhu_cau.universe, [20, 45, 70])
+nhu_cau['cao'] = fuzz.trimf(nhu_cau.universe, [60, 100, 100])
+
+# Biến thời tiết em sẽ cho tự động, tại tài liệu chưa nói rõ.
+thoi_tiet.automf(3, names=['tot', 'trung_binh', 'xau'])
+
+danh_gia['kem'] = fuzz.trimf(danh_gia.universe, [1.0, 1.0, 2.5])
+danh_gia['trung_binh'] = fuzz.trimf(danh_gia.universe, [2.0, 3.0, 4.0])
+danh_gia['tot'] = fuzz.trimf(danh_gia.universe, [3.5, 5.0, 5.0])
+
+dung_gio['tre'] = fuzz.trimf(dung_gio.universe, [0, 0, 50])
+dung_gio['dung_gio'] = fuzz.trimf(dung_gio.universe, [40, 60, 80])
+dung_gio['som'] = fuzz.trimf(dung_gio.universe, [70, 100, 100])
+
+# Giá đi xe: Thấp, Trung bình, Cao, Rất cao
+gia_xe['thap'] = fuzz.trimf(gia_xe.universe, [1.0, 1.0, 2.0])
+gia_xe['trung_binh'] = fuzz.trimf(gia_xe.universe, [1.5, 2.0, 2.5])
+gia_xe['cao'] = fuzz.trimf(gia_xe.universe, [2.0, 3.0, 3.5])
+gia_xe['rat_cao'] = fuzz.trimf(gia_xe.universe, [3.0, 4.0, 4.0])
+
+diem_thuong['khong_co'] = fuzz.trimf(diem_thuong.universe, [0, 0, 10])
+diem_thuong['it'] = fuzz.trimf(diem_thuong.universe, [5, 20, 40])
+diem_thuong['trung_binh'] = fuzz.trimf(diem_thuong.universe, [30, 50, 70])
+diem_thuong['cao'] = fuzz.trimf(diem_thuong.universe, [60, 100, 100])
+
+# Các luật Fuzzy
+rule1 = ctrl.Rule(khoang_cach['ngan'] & luu_luong['thap'] & nhu_cau['thap'], gia_xe['thap'])
+rule2 = ctrl.Rule(khoang_cach['ngan'] & luu_luong['trung_binh'] & nhu_cau['cao'], gia_xe['trung_binh'])
+rule3 = ctrl.Rule(khoang_cach['trung_binh'] & luu_luong['cao'] & nhu_cau['cao'], gia_xe['cao'])
+rule4 = ctrl.Rule(khoang_cach['rat_xa'] & luu_luong['cao'] & nhu_cau['cao'], gia_xe['rat_cao'])
+rule5 = ctrl.Rule(khoang_cach['dai'] & luu_luong['trung_binh'] & nhu_cau['thap'], gia_xe['trung_binh'])
+
+rule11 = ctrl.Rule(danh_gia['tot'] & dung_gio['som'], diem_thuong['cao'])
+rule12 = ctrl.Rule(danh_gia['trung_binh'] & dung_gio['dung_gio'], diem_thuong['trung_binh'])
+rule13 = ctrl.Rule(danh_gia['kem'] & dung_gio['tre'], diem_thuong['khong_co'])
+rule15 = ctrl.Rule(khoang_cach['trung_binh'] & luu_luong['trung_binh'] & danh_gia['tot'], diem_thuong['trung_binh'])
+
+# Gói gọn vào Control System 
+he_thong_grab = ctrl.ControlSystem([rule1, rule2, rule3, rule4, rule5, rule11, rule12, rule13, rule15])
+mo_phong = ctrl.ControlSystemSimulation(he_thong_grab)
+
+print("--- MÔ PHỎNG GRAB-BIKE ---")
+# Ta sẽ cho 1 bài toán , nếu giả sử em tan học về và đặt xe đi 6km, đúng lúc giờ tan tầm kẹt xe (lưu lượng 80%) và nhu cầu gọi xe đang cao (85%)
+mo_phong.input['khoang_cach'] = 6
+mo_phong.input['luu_luong'] = 80
+mo_phong.input['nhu_cau'] = 85
+# REMOVED: mo_phong.input['thoi_tiet'] = 2        # Thời tiết Tốt (thoi_tiet is not part of any rule)
+mo_phong.input['danh_gia'] = 4.8       # Đánh giá 4.8 sao (Tốt)
+mo_phong.input['dung_gio'] = 90        # Đến sớm 90% (Sớm)
+
+# Lệnh chạy AI
+mo_phong.compute()
+
+# In kết quả
+print(f"- Khoảng cách: 6 km")
+print(f"- Lưu lượng giao thông: 80 %")
+print(f"- Mức nhu cầu: 85 %")
+print(f"- Đánh giá: 4.8 sao")
+print(f"- Dung giờ: 90 %")
+print(f"=> HỆ SỐ GIÁ GRAB ĐỀ XUẤT: {mo_phong.output['gia_xe']:.2f}x")
+print(f"2. ĐIỂM THƯỞNG CHO CHUYẾN ĐI NÀY: {mo_phong.output['diem_thuong']:.1f} điểm")
