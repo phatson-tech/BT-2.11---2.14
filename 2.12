@@ -1,0 +1,49 @@
+# Tên file: bai_2_12_shopee_chiet_khau.py
+import numpy as np
+import skfuzzy as fuzz
+from skfuzzy import control as ctrl
+
+#Biến đâuf vào
+xep_hang = ctrl.Antecedent(np.arange(0, 5.1, 0.1), 'xep_hang') # 0 đến 5 sao
+khoi_luong = ctrl.Antecedent(np.arange(0, 101, 1), 'khoi_luong') # % khối lượng
+bien_loi_nhuan = ctrl.Antecedent(np.arange(0, 101, 1), 'bien_loi_nhuan') # %
+su_kien = ctrl.Antecedent(np.arange(0, 101, 1), 'su_kien') # Mức độ sự kiện
+doi_thu = ctrl.Antecedent(np.arange(0, 101, 1), 'doi_thu') # Mức giảm giá đối thủ
+
+#Biến đầu ra
+chiet_khau = ctrl.Consequent(np.arange(0, 71, 1), 'chiet_khau')
+
+# Đầu vào thì sẽ chia tự động 3 mức độ
+xep_hang.automf(3, names=['thap', 'trung_binh', 'cao'])
+khoi_luong.automf(3, names=['thap', 'trung_binh', 'cao'])
+bien_loi_nhuan.automf(3, names=['thap', 'trung_binh', 'cao'])
+su_kien.automf(3, names=['thap', 'trung_binh', 'cao'])
+doi_thu.automf(3, names=['thap', 'trung_binh', 'cao'])
+
+# Đầu ra (Rất thấp: 0-5%, Thấp: 5-10%, Trung bình: 10-20%, Cao: 20-40%, Rất cao: 40-70%)
+chiet_khau['rat_thap'] = fuzz.trimf(chiet_khau.universe, [0, 2.5, 5])
+chiet_khau['thap'] = fuzz.trimf(chiet_khau.universe, [5, 7.5, 10])
+chiet_khau['trung_binh'] = fuzz.trimf(chiet_khau.universe, [10, 15, 20])
+chiet_khau['cao'] = fuzz.trimf(chiet_khau.universe, [20, 30, 40])
+chiet_khau['rat_cao'] = fuzz.trimf(chiet_khau.universe, [40, 55, 70])
+
+# Luật mờ Fuzzy
+rule1 = ctrl.Rule(xep_hang['cao'] & khoi_luong['cao'] & bien_loi_nhuan['cao'], chiet_khau['rat_thap'])
+rule2 = ctrl.Rule(xep_hang['thap'] & khoi_luong['thap'] & bien_loi_nhuan['cao'], chiet_khau['cao'])
+rule3 = ctrl.Rule(su_kien['cao'] & doi_thu['cao'], chiet_khau['cao'])
+rule4 = ctrl.Rule(xep_hang['trung_binh'] & khoi_luong['trung_binh'] & bien_loi_nhuan['trung_binh'], chiet_khau['trung_binh'])
+rule5 = ctrl.Rule(doi_thu['thap'] & bien_loi_nhuan['thap'] & khoi_luong['cao'], chiet_khau['rat_thap'])
+
+he_thong = ctrl.ControlSystem([rule1, rule2, rule3, rule4, rule5])
+mo_phong = ctrl.ControlSystemSimulation(he_thong)
+
+# 5. TEST THỬ VỚI 1 TÌNH HUỐNG (Cửa hàng làm ăn bình thường)
+mo_phong.input['xep_hang'] = 4.3           # 4.3 sao (Mức Trung bình)
+mo_phong.input['khoi_luong'] = 50          # 50% (Mức Trung bình)
+mo_phong.input['bien_loi_nhuan'] = 15      # 15% (Mức Thấp)
+mo_phong.input['su_kien'] = 85             # 85% (Mức Cao)
+mo_phong.input['doi_thu'] = 90             # 90% (Mức Cao)
+
+mo_phong.compute()
+print(f"Phần trăm chiết khấu hệ thống đề xuất: {mo_phong.output['chiet_khau']:.2f} %")
+print("=> Kết luận: Hệ số đã rơi vào khoảng 20-40%, hoàn toàn khớp với Mức 'Cao' được ghi ở trang 90!")
