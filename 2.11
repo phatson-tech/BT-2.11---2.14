@@ -1,0 +1,63 @@
+# Tên file: bai_2_13_shopee.py
+!pip install scikit-fuzzy
+import numpy as np
+import skfuzzy as fuzz
+from skfuzzy import control as ctrl
+
+#(Dựa theo trang 90)
+nhu_cau = ctrl.Antecedent(np.arange(0, 11, 1), 'nhu_cau')
+ap_luc_canh_tranh = ctrl.Antecedent(np.arange(0, 11, 1), 'ap_luc_canh_tranh')
+uy_tin = ctrl.Antecedent(np.arange(0, 5.1, 0.1), 'uy_tin') # Đánh giá sao từ 0-5
+bien_loi_nhuan = ctrl.Antecedent(np.arange(0, 101, 1), 'bien_loi_nhuan') # % lợi nhuận
+nhu_cau_mua = ctrl.Antecedent(np.arange(0, 11, 1), 'nhu_cau_mua')
+
+# Biến đầu ra (Trang 91: Tỷ lệ % giảm giá)
+giam_gia = ctrl.Consequent(np.arange(0, 101, 1), 'giam_gia') #Consenquent : Ket Luan
+
+#CHIA TẬP MỜ (Tự động chia 3 mức độ: Thấp, Trung bình, Cao)
+nhu_cau.automf(3, names=['thap', 'trung_binh', 'cao'])
+ap_luc_canh_tranh.automf(3, names=['thap', 'trung_binh', 'cao'])
+nhu_cau_mua.automf(3, names=['khong_co', 'trung_binh', 'cao'])
+
+#Với 3 biến này em sẽ tính thủ công dựa theo tài liệu trang 90-91
+uy_tin['thap'] = fuzz.trimf(uy_tin.universe, [0, 0, 4.0])
+uy_tin['trung_binh'] = fuzz.trimf(uy_tin.universe, [3.8, 4.2, 4.5])
+uy_tin['cao'] = fuzz.trimf(uy_tin.universe, [4.4, 5.0, 5.0])
+
+bien_loi_nhuan['thap'] = fuzz.trimf(bien_loi_nhuan.universe, [0, 0, 30])
+bien_loi_nhuan['trung_binh'] = fuzz.trimf(bien_loi_nhuan.universe, [20, 50, 80])
+bien_loi_nhuan['cao'] = fuzz.trimf(bien_loi_nhuan.universe, [60, 100, 100])
+
+giam_gia['rat_thap'] = fuzz.trimf(giam_gia.universe, [0, 0, 5])
+giam_gia['thap'] = fuzz.trimf(giam_gia.universe, [5, 10, 10])
+giam_gia['trung_binh'] = fuzz.trimf(giam_gia.universe, [10, 20, 30])
+giam_gia['cao'] = fuzz.trimf(giam_gia.universe, [20, 40, 50])
+giam_gia['rat_cao'] = fuzz.trimf(giam_gia.universe, [40, 70, 100])
+
+# Dựa theo trang 91
+rule1 = ctrl.Rule(nhu_cau['cao'] & ap_luc_canh_tranh['thap'] & bien_loi_nhuan['thap'], giam_gia['rat_thap'])
+rule2 = ctrl.Rule(nhu_cau['thap'] & ap_luc_canh_tranh['cao'] & bien_loi_nhuan['cao'], giam_gia['cao'])
+rule3 = ctrl.Rule(uy_tin['cao'] & bien_loi_nhuan['trung_binh'] & nhu_cau_mua['cao'], giam_gia['trung_binh'])
+rule4 = ctrl.Rule(ap_luc_canh_tranh['cao'] & nhu_cau_mua['cao'] & bien_loi_nhuan['cao'], giam_gia['rat_cao'])
+rule5 = ctrl.Rule(uy_tin['thap'] & nhu_cau['trung_binh'] & bien_loi_nhuan['thap'], giam_gia['trung_binh'])
+rule6 = ctrl.Rule(nhu_cau['cao'] & nhu_cau_mua['khong_co'] & ap_luc_canh_tranh['thap'], giam_gia['rat_thap'])
+rule7 = ctrl.Rule(bien_loi_nhuan['cao'] & ap_luc_canh_tranh['trung_binh'] & nhu_cau_mua['trung_binh'], giam_gia['trung_binh'])
+
+he_thong_shopee = ctrl.ControlSystem([rule1, rule2, rule3, rule4, rule5, rule6, rule7])
+mo_phong = ctrl.ControlSystemSimulation(he_thong_shopee)
+
+#Tình huống Đồng hồ xa xỉ, trang 91
+print("--- GIẢI TÌNH HUỐNG 2.13: ĐỒNG HỒ XA XỈ ---")
+mo_phong.input['nhu_cau'] = 9                # Cao
+mo_phong.input['ap_luc_canh_tranh'] = 5      # Trung bình
+mo_phong.input['uy_tin'] = 4.2               # Trung bình (4.2 sao)
+mo_phong.input['bien_loi_nhuan'] = 80        # Cao
+mo_phong.input['nhu_cau_mua'] = 8            # Cao (Khuyến mãi 11.11)
+
+# Chạy suy diễn AI
+mo_phong.compute()
+
+# In kết quả
+ket_qua_giam_gia = mo_phong.output['giam_gia']
+print(f"Mức giảm giá đề xuất cho Đồng hồ là: {ket_qua_giam_gia:.2f} %")
+print("Kết quả này hoàn toàn khớp với mức 'Trung bình (15-25%)'")
